@@ -1,0 +1,81 @@
+name: Banknote ML Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ml-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Download repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 3. Install project dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4. Validate dataset
+      - name: Validate dataset
+        run: |
+          python src/validate_data.py
+
+      # 5. Train model and apply quality gate
+      - name: Train model and run quality gate
+        run: |
+          python src/train.py
+
+      # 6. Run application tests
+      - name: Run application tests
+        run: |
+          python -m pytest -q
+
+      # 7. Create downloadable model package
+      - name: Create model package
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          python - <<'PY'
+          import os
+          import zipfile
+
+          run_number = os.environ["RUN_NUMBER"]
+          package_path = (
+              f"artifacts/banknote-model-package-{run_number}.zip"
+          )
+
+          files = [
+              "artifacts/model.joblib",
+              "artifacts/metrics.json",
+              "src/predict.py",
+              "requirements.txt",
+          ]
+
+          with zipfile.ZipFile(
+              package_path,
+              "w",
+              zipfile.ZIP_DEFLATED
+          ) as package:
+              for file in files:
+                  package.write(file, arcname=file)
+
+          print(f"Created package: {package_path}")
+          PY
+
+      # 8. Upload artifact only if every previous step passed
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: banknote-model-package-${{ github.run_number }}
+          path: artifacts/banknote-model-package-${{ github.run_number }}.zip
