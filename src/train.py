@@ -5,11 +5,8 @@ import joblib
 import pandas as pd
 
 from sklearn.dummy import DummyClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 
 from validate_data import (
     DATA_URL,
@@ -45,20 +42,15 @@ def train_and_evaluate():
 
     os.makedirs("artifacts", exist_ok=True)
 
-    # ---------------------------------------------------------
     # 1. Load and validate dataset
-    # ---------------------------------------------------------
 
     df = load_dataset()
-
     validate_data(df)
 
     X = df[FEATURE_COLUMNS]
     y = df[TARGET_COLUMN]
 
-    # ---------------------------------------------------------
     # 2. Reproducible train/validation split
-    # ---------------------------------------------------------
 
     X_train, X_valid, y_train, y_valid = train_test_split(
         X,
@@ -71,9 +63,7 @@ def train_and_evaluate():
     print(f"Training samples: {len(X_train)}")
     print(f"Validation samples: {len(X_valid)}")
 
-    # ---------------------------------------------------------
     # 3. Train DummyClassifier baseline
-    # ---------------------------------------------------------
 
     baseline = DummyClassifier(
         strategy="most_frequent"
@@ -88,21 +78,12 @@ def train_and_evaluate():
         baseline_predictions,
     )
 
-    # ---------------------------------------------------------
-    # 4. Train candidate model
-    # ---------------------------------------------------------
+    # 4. Intentionally weak candidate model
+    # FAILURE A: candidate is deliberately the same
+    # as the baseline so the quality gate fails.
 
-    model = Pipeline(
-        steps=[
-            ("scaler", StandardScaler()),
-            (
-                "classifier",
-                LogisticRegression(
-                    random_state=RANDOM_STATE,
-                    max_iter=1000,
-                ),
-            ),
-        ]
+    model = DummyClassifier(
+        strategy="most_frequent"
     )
 
     model.fit(X_train, y_train)
@@ -114,9 +95,7 @@ def train_and_evaluate():
         model_predictions,
     )
 
-    # ---------------------------------------------------------
     # 5. Quality gate
-    # ---------------------------------------------------------
 
     required_score = baseline_f1 + IMPROVEMENT_MARGIN
 
@@ -128,12 +107,13 @@ def train_and_evaluate():
     print(f"Model F1:          {model_f1:.4f}")
     print(f"Required F1:       {required_score:.4f}")
     print(f"Improvement margin: {IMPROVEMENT_MARGIN:.4f}")
-    print(f"Quality gate:      {'PASS' if gate_passed else 'FAIL'}")
+    print(
+        f"Quality gate:      "
+        f"{'PASS' if gate_passed else 'FAIL'}"
+    )
     print("=======================================")
 
-    # ---------------------------------------------------------
     # 6. Save metrics report
-    # ---------------------------------------------------------
 
     metrics = {
         "dataset": "Banknote Authentication",
@@ -150,9 +130,7 @@ def train_and_evaluate():
     with open(METRICS_PATH, "w") as file:
         json.dump(metrics, file, indent=4)
 
-    # ---------------------------------------------------------
     # 7. Save model only when quality gate passes
-    # ---------------------------------------------------------
 
     if not gate_passed:
         print(
@@ -161,6 +139,7 @@ def train_and_evaluate():
         )
 
         # Make sure a failed run does not leave an old model.
+
         if os.path.exists(MODEL_PATH):
             os.remove(MODEL_PATH)
 
