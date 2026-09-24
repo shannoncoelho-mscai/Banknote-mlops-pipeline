@@ -38,7 +38,7 @@ def predict(sample):
     # Make prediction
     prediction = model.predict(df)
 
-    return prediction[0]
+    return prediction[1]
 
 
 if __name__ == "__main__":

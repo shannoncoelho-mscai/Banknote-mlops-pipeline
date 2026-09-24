@@ -5,8 +5,11 @@ import joblib
 import pandas as pd
 
 from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from validate_data import (
     DATA_URL,
@@ -78,12 +81,20 @@ def train_and_evaluate():
         baseline_predictions,
     )
 
-    # 4. Intentionally weak candidate model
-    # FAILURE A: candidate is deliberately the same
-    # as the baseline so the quality gate fails.
+    # 4. Train candidate model
+    # Restored good Logistic Regression model.
 
-    model = DummyClassifier(
-        strategy="most_frequent"
+    model = Pipeline(
+        steps=[
+            ("scaler", StandardScaler()),
+            (
+                "classifier",
+                LogisticRegression(
+                    random_state=RANDOM_STATE,
+                    max_iter=1000,
+                ),
+            ),
+        ]
     )
 
     model.fit(X_train, y_train)
